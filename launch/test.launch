@@ -1,0 +1,39 @@
+<?xml version="1.0"?>
+<launch>
+    <!--args 参数-->
+    <arg name="use_rviz" default="true"/>
+
+    <!--节点一 get_cloud -->
+    <node pkg="my_odom" type="get_points_cloud_node" name="getCloud" output="screen">
+        <param name="pointsCloudInTopic" value="/velodyne_points"/>
+        <param name="pointsCloudOutTopic" value="/raw_points_cloud"/>
+        <param name="loopRate" value="10"/>
+    </node>
+
+    <!--节点二 filter_cloud-->
+    <node pkg="my_odom" type="filter_points_cloud_node" name="filterCloud" output="screen">
+        <param name="zLimitMin" value="-0.2"/>
+        <param name="zLimitMax" value="100.0"/>
+        <param name="leafSize" value="0.1"/>
+        <param name="meanK" value="50"/>
+        <param name="stdMul" value="0.1"/>
+    </node>
+
+    <!--节点三 get_odom-->
+    <node pkg="my_odom" type="get_odom_node" name="getOdom" output="screen">
+        <param name="filtered_frame_id" value="filtered"/>
+        <param name="raw_points_frame_id" value="raw_points"/>
+        <param name="odom_frame_id" value="odom"/>
+    </node>
+
+    <node pkg="tf2_ros" type="static_transform_publisher" name="filtered2lidar"
+          args="0 0 0 0 0 0 filtered raw_points" output="screen"/>
+
+    <!--判断启动rviz-->
+    <group if="$(arg use_rviz)">
+        <node pkg="rviz" type="rviz" name="rviz_my_odom" required="true"
+              args="-d $(find my_odom)/rviz/test.rviz"/>
+    </group>
+</launch>
+
+
