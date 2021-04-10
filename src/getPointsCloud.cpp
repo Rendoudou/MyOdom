@@ -1,8 +1,8 @@
 /**
  * @brief 从Bag包中读取点云信息，并通过话题/new_points发布
  * @author doudou
- * @version 1.0
- * @date 2020.04.04
+ * @version 1.1
+ * @date 2020.04.10
  */
 
 
@@ -30,9 +30,10 @@ static void initParams(ros::NodeHandle &nh);
 
 //参数
 static struct localParam{
-    std::string points_topic_sub;
-    std::string points_topic_pub;
-    int loop_rate_set;
+    std::string points_topic_sub = "/velodyne_points";
+    std::string points_topic_pub = "/raw_points";
+    std::string raw_frame_id = "raw";
+    int loop_rate_set = 10;
 }param;
 
 
@@ -48,7 +49,7 @@ int main(int argc, char **argv) {
     initParams(nh); //节点初始化
     points_sub = nh.subscribe<sensor_msgs::PointCloud2>(param.points_topic_sub, 5, &cloudCallback);//订阅者与发布者
     points_pub = nh.advertise<sensor_msgs::PointCloud2>(param.points_topic_pub, 5);
-    ros::Rate loop_rate(param.loop_rate_set); //主循环
+    ros::Rate loop_rate(param.loop_rate_set); //主循环速度控制
     while (ros::ok()) {
         loop_rate.sleep(); //休眠
         ros::spinOnce();
@@ -63,7 +64,6 @@ int main(int argc, char **argv) {
  */
 static void initParams(ros::NodeHandle &nh) {
     param.points_topic_sub = nh.param<std::string>("pointsCloudInTopic", "/velodyne_points");
-    param.points_topic_pub = nh.param<std::string>("pointsCloudOutTopic", "/raw_points_cloud");
     param.loop_rate_set = nh.param<int>("loopRate", 10);  //
 }
 
@@ -78,7 +78,7 @@ void cloudCallback(const sensor_msgs::PointCloud2ConstPtr &cloud_msg_in) {
     }
 
     static int cloud_id = 1;
-    ROS_INFO("cloudCallback, frame id = %d.\n", cloud_id);
+    ROS_INFO("Get Points cloudCallback, frame id = %d.\n", cloud_id);
     if (cloud_id <= 1000)
         cloud_id++;
     else
@@ -90,6 +90,6 @@ void cloudCallback(const sensor_msgs::PointCloud2ConstPtr &cloud_msg_in) {
     sensor_msgs::PointCloud2 cloud_msg_out; //传感器数据类型，点云
     pcl::toROSMsg(*cloud, cloud_msg_out); //从C++数据类型转换为ros下数据类型
     cloud_msg_out.header.stamp = cloud_msg_in->header.stamp;
-    cloud_msg_out.header.frame_id = "raw_points";
+    cloud_msg_out.header.frame_id = param.raw_frame_id;
     points_pub.publish(cloud_msg_out);
 }

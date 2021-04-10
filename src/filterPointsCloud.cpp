@@ -1,15 +1,14 @@
 /**
  * @brief 对点云滤波
  * @author doudou
- * @version 1.0
- * @date 2020.04.04
+ * @version 1.1
+ * @date 2020.04.10
  */
 
 #include <iostream>
 #include <ros/ros.h>
 #include <sensor_msgs/PointCloud2.h> //传感器消息类型
 
-#include <pcl/io/pcd_io.h>
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
 #include <pcl_conversions/pcl_conversions.h>
@@ -30,23 +29,17 @@ typedef pcl::PointXYZI PointT;
 
 //变量
 pcl::PassThrough<PointT> filter_pass;  //直通滤波器
-//float z_limit_min = 0.0f;              //
-//float z_limit_max = 100.0f;            //
-
-pcl::VoxelGrid<PointT> filter_voxel_grid; //
-//float leaf_size = 0.05f;                //
-
-pcl::StatisticalOutlierRemoval<PointT> filter_outlier_removal;
-//int mean_k = 50;
-//float std_mul = 1.0f;
+pcl::VoxelGrid<PointT> filter_voxel_grid; //体素网格滤波器
+pcl::StatisticalOutlierRemoval<PointT> filter_outlier_removal; //统计滤波器
 
 struct localParam{
     std::string filter_method;
-    float z_limit_min;
-    float z_limit_max;
-    float leaf_size;
-    int mean_k;
-    float std_mul;
+    float z_limit_min = -0.2f;
+    float z_limit_max = 100.0f;
+    float leaf_size = 0.1f;
+    int mean_k = 50;
+    float std_mul = 1.0f;
+    std::string filtered_frame_id = "filtered";
 }param;
 
 
@@ -68,11 +61,8 @@ int main(int argc, char **argv) {
     ros::init(argc, argv, "filterCloud"); //节点初始化
     ros::NodeHandle nh; // 节点句柄
     initParams(nh);
-
-    //设置订阅者与发布者
-    points_sub = nh.subscribe<sensor_msgs::PointCloud2>("/raw_points_cloud", 5, &cloudCallback);
+    points_sub = nh.subscribe<sensor_msgs::PointCloud2>("/raw_points", 5, &cloudCallback); //设置订阅者与发布者
     points_pub = nh.advertise<sensor_msgs::PointCloud2>("/filtered_points", 5);
-
     ros::spin();
     return 0;
 }
@@ -101,7 +91,7 @@ static void initParams(ros::NodeHandle &nh) {
 static void cloudCallback(const sensor_msgs::PointCloud2ConstPtr &cloud_msg_in) {
     if (!ros::ok())
         return;
-
+    ROS_INFO("Filter Points cloudCallback.");
     pcl::PointCloud<PointT>::Ptr cloud_in(new pcl::PointCloud<PointT>); // 申请点云空间 进入的点云
     pcl::PointCloud<PointT>::ConstPtr cloud_filtered;                      // 点云指针
     pcl::fromROSMsg(*cloud_msg_in, *cloud_in);                          // 转换数据类型
@@ -113,7 +103,7 @@ static void cloudCallback(const sensor_msgs::PointCloud2ConstPtr &cloud_msg_in) 
 
     sensor_msgs::PointCloud2 cloud_msg_out;
     pcl::toROSMsg(*cloud_filtered, cloud_msg_out);
-    cloud_msg_out.header.frame_id = "filtered";              // frame id
+    cloud_msg_out.header.frame_id = param.filtered_frame_id;        // frame id
     cloud_msg_out.header.stamp = cloud_msg_in->header.stamp; // 时间戳
     points_pub.publish(cloud_msg_out);                       // 发送
 }
@@ -126,7 +116,7 @@ static void cloudCallback(const sensor_msgs::PointCloud2ConstPtr &cloud_msg_in) 
  */
 static pcl::PointCloud<PointT>::ConstPtr passThroughFilter(const pcl::PointCloud<PointT>::ConstPtr &cloud_in) {
     filter_pass.setInputCloud(cloud_in);
-    filter_pass.setFilterFieldName("z");        //直通滤波领域
+    filter_pass.setFilterFieldName("z");                    //直通滤波领域
     filter_pass.setFilterLimits(param.z_limit_min, param.z_limit_max); //直通滤波范围
     //pass.setFilterLimitsNegative(true);
     pcl::PointCloud<PointT>::Ptr cloud_filtered(new pcl::PointCloud<PointT>); //申请滤波后的点云存储空间

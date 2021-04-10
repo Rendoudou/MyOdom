@@ -6,7 +6,6 @@
     <!--节点一 get_cloud -->
     <node pkg="my_odom" type="get_points_cloud_node" name="getCloud" output="screen">
         <param name="pointsCloudInTopic" value="/velodyne_points"/>
-        <param name="pointsCloudOutTopic" value="/raw_points_cloud"/>
         <param name="loopRate" value="10"/>
     </node>
 
@@ -21,11 +20,13 @@
 
     <!--节点三 get_odom-->
     <node pkg="my_odom" type="get_odom_node" name="getOdom" output="screen">
-        <param name="filtered_frame_id" value="filtered"/>
-        <param name="raw_points_frame_id" value="raw_points"/>
-        <param name="odom_frame_id" value="odom"/>
+        <param name="maxIterations" value="500"/>
+        <param name="euclideanFitnessEpsilon" value="0.001"/>
+        <param name="transFormationEpsilon" value="1e-10"/>
+        <param name="maxCorrespondenceDis" value="100.0"/>
     </node>
 
+    <!--静态坐标转换-->
     <node pkg="tf2_ros" type="static_transform_publisher" name="filtered2lidar"
           args="0 0 0 0 0 0 filtered raw_points" output="screen"/>
 

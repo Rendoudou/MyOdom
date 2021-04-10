@@ -1,29 +1,24 @@
 /**
  * @brief icp获取里程计
  * @author doudou
- * @version 1.0
- * @date 2020.04.09
+ * @version 1.1
+ * @date 2020.04.10
  */
 
 #include <iostream>
 #include <ros/ros.h>
-#include <sensor_msgs/PointCloud2.h> //传感器消息类型
 
-#include <iostream>
-#include <pcl/io/pcd_io.h>
 #include <pcl/point_types.h>
 #include <pcl/registration/icp.h>
 #include <pcl/visualization/pcl_visualizer.h>
 #include <pcl_conversions/pcl_conversions.h>
 #include <boost/thread/thread.hpp>
-#include <pcl/console/parse.h>  //pcl控制台解
 
 #include "tf2_ros/transform_listener.h"
 #include "tf2_ros/transform_broadcaster.h"
-#include "tf2/LinearMath/Quaternion.h"
-#include "tf2_geometry_msgs/tf2_geometry_msgs.h"
 #include <nav_msgs/Odometry.h>
-
+#include <geometry_msgs/TransformStamped.h>
+#include <sensor_msgs/PointCloud2.h> //传感器消息类型
 
 //订阅者与发布者
 ros::Subscriber points_sub;
@@ -46,10 +41,9 @@ struct localParam {
     double trans_formation_epsilon = 1e-10;  //两次变化矩阵之间的差值（一般设置为1e-10即可）
     double max_correspondence_dis = 100.0;    //最大对应点距离
 
-    std::string filtered_frame_id;
-    std::string raw_points_frame_id;
-    std::string odom_frame_id;
-
+    std::string filtered_frame_id = "filtered";            //滤波点云id
+    std::string raw_frame_id = "raw";        //原始点云id
+    std::string odom_frame_id = "odom";
 } param;
 
 
@@ -60,9 +54,7 @@ static Eigen::Matrix4f matching(const ros::Time &stamp, const pcl::PointCloud<Po
 static void publishOdometry(const ros::Time &stamp, const Eigen::Matrix4f &pose);                              //发布里程计
 static geometry_msgs::TransformStamped
 matrix2transform(const ros::Time &stamp, const Eigen::Matrix4f &pose, const std::string &frame_id,
-                 const std::string &child_frame_id);
-
-static void completeTfTree();
+                 const std::string &child_frame_id);                                                           //转换消息格式
 
 /**
  * @brief main function
@@ -88,9 +80,10 @@ int main(int argc, char **argv) {
  * @param nh 节点句柄
  */
 static void initParams(ros::NodeHandle &nh) {
-    param.filtered_frame_id = nh.param<std::string>("filtered_frame_id", "filtered");
-    param.raw_points_frame_id = nh.param<std::string>("raw_points_frame_id", "velodyne");
-    param.odom_frame_id = nh.param<std::string>("odom_frame_id", "odom");
+    param.max_iterations = nh.param<int>("maxIterations", 500);                           //最大迭代次数
+    param.euclidean_fitness_epsilon = nh.param<double>("euclideanFitnessEpsilon", 0.001); //收敛条件是均方误差和小于阈值， 停止迭代
+    param.trans_formation_epsilon = nh.param<double>("transFormationEpsilon", 1e-10);     //两次变化矩阵之间的差值（一般设置为1e-10即可）
+    param.max_correspondence_dis = nh.param<double>("maxCorrespondenceDis", 100.0);       //最大对应点距离
 }
 
 
@@ -102,12 +95,11 @@ static void cloudCallback(const sensor_msgs::PointCloud2ConstPtr &cloud_msg_in) 
     if (!ros::ok()) {
         return;
     }
-
+    ROS_INFO("Get Odom cloudCallback.");
     pcl::PointCloud<PointT>::Ptr cloud_in(new pcl::PointCloud<PointT>); //申请点云空间
     pcl::fromROSMsg(*cloud_msg_in, *cloud_in); //转换消息格式
     Eigen::Matrix4f pose = matching(cloud_msg_in->header.stamp, cloud_in);
     publishOdometry(cloud_msg_in->header.stamp, pose);
-    //completeTfTree();
 }
 
 /**
@@ -160,21 +152,21 @@ static void publishOdometry(const ros::Time &stamp, const Eigen::Matrix4f &pose)
     geometry_msgs::TransformStamped filtered_trans = matrix2transform(stamp, pose, param.odom_frame_id,
                                                                       param.filtered_frame_id);   //odom相对于filtered points
     geometry_msgs::TransformStamped raw_points_trans = matrix2transform(stamp, pose, param.odom_frame_id,
-                                                                        param.raw_points_frame_id);   //odom相对于raw_points
+                                                                        param.raw_frame_id);   //odom相对于raw_points
     odom_broadcaster.sendTransform(filtered_trans);      //发布到TF tree, odom相对于filtered
     odom_broadcaster.sendTransform(raw_points_trans);    //发布到TF tree, odom相对于raw_points
 
     // publish the transform
     nav_msgs::Odometry odom;                         //里程计信息
     odom.header.stamp = stamp;                       //设置时间戳
-    odom.header.frame_id = param.odom_frame_id;      //节点id
+    odom.header.frame_id = param.odom_frame_id;      //节点id odom
 
     odom.pose.pose.position.x = pose(0, 3);//
     odom.pose.pose.position.y = pose(1, 3);
     odom.pose.pose.position.z = pose(2, 3);
     odom.pose.pose.orientation = filtered_trans.transform.rotation;
 
-    odom.child_frame_id = param.filtered_frame_id;
+    odom.child_frame_id = param.filtered_frame_id;   //filtered
     odom.twist.twist.linear.x = 0.0;
     odom.twist.twist.linear.y = 0.0;
     odom.twist.twist.angular.z = 0.0;
@@ -213,20 +205,4 @@ matrix2transform(const ros::Time &stamp, const Eigen::Matrix4f &pose, const std:
     odom_trans.transform.rotation = odom_quat;
 
     return odom_trans;
-}
-
-
-/**
- * @brief complete tf tree
- */
-static void completeTfTree() {
-    static tf2_ros::Buffer buffer;
-    static tf2_ros::TransformListener listener(buffer);
-    try {
-        geometry_msgs::TransformStamped tfs1 = buffer.lookupTransform("raw_points", "odom", ros::Time(0));
-        geometry_msgs::TransformStamped tfs2 = buffer.lookupTransform("filtered", "odom", ros::Time(0));
-    }
-    catch (const std::exception &e) {
-        ROS_INFO("异常信息:%s", e.what());
-    }
 }

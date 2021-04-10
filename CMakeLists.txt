@@ -13,6 +13,8 @@ find_package(catkin REQUIRED COMPONENTS
         sensor_msgs
         std_msgs
         pcl_ros
+        tf2
+        tf2_ros
         )
 
 ## System dependencies are found with CMake's conventions
@@ -67,9 +69,9 @@ message(STATUS "PCL_DEFINITIONS:" ${PCL_DEFINITIONS})
 ## catkin specific configuration ##
 ###################################
 catkin_package(
-        #  INCLUDE_DIRS include
+        INCLUDE_DIRS include
         #  LIBRARIES publish_points_cloud
-        CATKIN_DEPENDS roscpp rospy sensor_msgs std_msgs pcl_ros
+        CATKIN_DEPENDS roscpp rospy sensor_msgs std_msgs pcl_ros tf2 tf2_ros
         #  DEPENDS system_lib
 )
 
@@ -80,7 +82,7 @@ catkin_package(
 ## Specify additional locations of header files
 ## Your package locations should be listed before other locations
 include_directories(
-        # include
+        include
         ${catkin_INCLUDE_DIRS}
         ${PCL_INCLUDE_DIRS}
 )
@@ -89,7 +91,7 @@ add_executable(get_points_cloud_node src/getPointsCloud.cpp)
 add_dependencies(get_points_cloud_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(get_points_cloud_node ${catkin_LIBRARIES})
 
-add_executable(filter_points_cloud_node src/filterPointsCloud.cpp)
+add_executable(filter_points_cloud_node src/filterPointsCloud.cpp include/common.h)
 add_dependencies(filter_points_cloud_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(filter_points_cloud_node ${catkin_LIBRARIES})
 
