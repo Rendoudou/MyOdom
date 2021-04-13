@@ -5,18 +5,24 @@
 	roslaunch my_odom test.launch
 	
 
->>>>>2021 04 04
+>>>>>2021 04 04 branch main
         1.获取点云，getPointsCloud.cpp。
 		2.创建test.launch。
 
->>>>>2021 04 09 基本功能实现
+>>>>>2021 04 09 基本功能实现 branch main
         1.几种常用的点云滤波函数， filterPointsCloud.cpp。
 		2.使用icp获取激光里程计，getOdom.cpp。
 		3.创建/rviz/test.rviz。
 		4.修改/launch/test.launch。
 		5.tf 与 tf2 创建tf_tree,使得rviz显示正常。
 
->>>>>2021 04 10
+>>>>>2021 04 10 branch main
         1.小修改结构。
         2.删除tf_complete。
         3.待解决多层tf问题与icp精度问题。
+
+>>>>>2021 04 12 branch test
+        1.新建test分支，处理多层tf_tree的坐标系转换问题。
+        2.多层坐标系转换不存在问题，要降低 bag play 速率，注意各个frame_id要对应符合。
+        3.换回了三层tf_tree, odom -> filtered -> raw。
+        4.对代码结构做小修改，新增debugSwitch开关。

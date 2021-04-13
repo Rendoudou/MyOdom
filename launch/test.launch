@@ -24,11 +24,12 @@
         <param name="euclideanFitnessEpsilon" value="0.001"/>
         <param name="transFormationEpsilon" value="1e-10"/>
         <param name="maxCorrespondenceDis" value="100.0"/>
+        <param name="debugSwitch" value="true"/>
     </node>
 
     <!--静态坐标转换-->
     <node pkg="tf2_ros" type="static_transform_publisher" name="filtered2lidar"
-          args="0 0 0 0 0 0 filtered raw_points" output="screen"/>
+          args="0 0 0 0 0 0 filtered raw" output="screen"/>
 
     <!--判断启动rviz-->
     <group if="$(arg use_rviz)">

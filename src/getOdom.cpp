@@ -38,12 +38,13 @@ struct localParam {
     pcl::IterativeClosestPoint<PointT, PointT> icp; //icp迭代器
     int max_iterations = 500;                 //最大迭代次数
     double euclidean_fitness_epsilon = 0.001; //收敛条件是均方误差和小于阈值， 停止迭代
-    double trans_formation_epsilon = 1e-10;  //两次变化矩阵之间的差值（一般设置为1e-10即可）
+    double trans_formation_epsilon = 1e-10;   //两次变化矩阵之间的差值（一般设置为1e-10即可）
     double max_correspondence_dis = 100.0;    //最大对应点距离
 
-    std::string filtered_frame_id = "filtered";            //滤波点云id
-    std::string raw_frame_id = "raw";        //原始点云id
+    std::string child_frame_id = "filtered";  //滤波点云id
     std::string odom_frame_id = "odom";
+
+    bool debugSwitch = false;
 } param;
 
 
@@ -84,6 +85,7 @@ static void initParams(ros::NodeHandle &nh) {
     param.euclidean_fitness_epsilon = nh.param<double>("euclideanFitnessEpsilon", 0.001); //收敛条件是均方误差和小于阈值， 停止迭代
     param.trans_formation_epsilon = nh.param<double>("transFormationEpsilon", 1e-10);     //两次变化矩阵之间的差值（一般设置为1e-10即可）
     param.max_correspondence_dis = nh.param<double>("maxCorrespondenceDis", 100.0);       //最大对应点距离
+    param.debugSwitch = nh.param<bool>("debugSwitch", false);                             //debugSwitch
 }
 
 
@@ -95,7 +97,8 @@ static void cloudCallback(const sensor_msgs::PointCloud2ConstPtr &cloud_msg_in) 
     if (!ros::ok()) {
         return;
     }
-    ROS_INFO("Get Odom cloudCallback.");
+    if(param.debugSwitch)
+        ROS_INFO("Get Odom cloudCallback.");
     pcl::PointCloud<PointT>::Ptr cloud_in(new pcl::PointCloud<PointT>); //申请点云空间
     pcl::fromROSMsg(*cloud_msg_in, *cloud_in); //转换消息格式
     Eigen::Matrix4f pose = matching(cloud_msg_in->header.stamp, cloud_in);
@@ -150,11 +153,8 @@ static void publishOdometry(const ros::Time &stamp, const Eigen::Matrix4f &pose)
     static tf2_ros::TransformBroadcaster odom_broadcaster;
     // broadcast the transform over tf
     geometry_msgs::TransformStamped filtered_trans = matrix2transform(stamp, pose, param.odom_frame_id,
-                                                                      param.filtered_frame_id);   //odom相对于filtered points
-    geometry_msgs::TransformStamped raw_points_trans = matrix2transform(stamp, pose, param.odom_frame_id,
-                                                                        param.raw_frame_id);   //odom相对于raw_points
+                                                                      param.child_frame_id);   //odom相对于filtered points
     odom_broadcaster.sendTransform(filtered_trans);      //发布到TF tree, odom相对于filtered
-    odom_broadcaster.sendTransform(raw_points_trans);    //发布到TF tree, odom相对于raw_points
 
     // publish the transform
     nav_msgs::Odometry odom;                         //里程计信息
@@ -166,7 +166,7 @@ static void publishOdometry(const ros::Time &stamp, const Eigen::Matrix4f &pose)
     odom.pose.pose.position.z = pose(2, 3);
     odom.pose.pose.orientation = filtered_trans.transform.rotation;
 
-    odom.child_frame_id = param.filtered_frame_id;   //filtered
+    odom.child_frame_id = param.child_frame_id;   //filtered
     odom.twist.twist.linear.x = 0.0;
     odom.twist.twist.linear.y = 0.0;
     odom.twist.twist.angular.z = 0.0;

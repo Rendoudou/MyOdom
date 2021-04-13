@@ -34,6 +34,7 @@ static struct localParam{
     std::string points_topic_pub = "/raw_points";
     std::string raw_frame_id = "raw";
     int loop_rate_set = 10;
+    bool debugSwitch = false;
 }param;
 
 
@@ -65,6 +66,7 @@ int main(int argc, char **argv) {
 static void initParams(ros::NodeHandle &nh) {
     param.points_topic_sub = nh.param<std::string>("pointsCloudInTopic", "/velodyne_points");
     param.loop_rate_set = nh.param<int>("loopRate", 10);  //
+    param.debugSwitch = nh.param<bool>("debugSwitch", false); //debugSwitch
 }
 
 
@@ -77,12 +79,14 @@ void cloudCallback(const sensor_msgs::PointCloud2ConstPtr &cloud_msg_in) {
         return;
     }
 
-    static int cloud_id = 1;
-    ROS_INFO("Get Points cloudCallback, frame id = %d.\n", cloud_id);
-    if (cloud_id <= 1000)
-        cloud_id++;
-    else
-        cloud_id = 1;
+    if (param.debugSwitch) {
+        static int cloud_id = 1;
+        ROS_INFO("Get Points cloudCallback, frame id = %d.\n", cloud_id);
+        if (cloud_id <= 1000)
+            cloud_id++;
+        else
+            cloud_id = 1;
+    }
 
     pcl::PointCloud<PointT>::Ptr cloud(new pcl::PointCloud<PointT>); //申请点云存储空间,点云智能指针，自动释放
     pcl::fromROSMsg(*cloud_msg_in, *cloud); //转换数据类型，ros下为xml

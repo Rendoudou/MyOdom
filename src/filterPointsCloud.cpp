@@ -32,7 +32,7 @@ pcl::PassThrough<PointT> filter_pass;  //直通滤波器
 pcl::VoxelGrid<PointT> filter_voxel_grid; //体素网格滤波器
 pcl::StatisticalOutlierRemoval<PointT> filter_outlier_removal; //统计滤波器
 
-struct localParam{
+static struct localParam{
     std::string filter_method;
     float z_limit_min = -0.2f;
     float z_limit_max = 100.0f;
@@ -40,6 +40,7 @@ struct localParam{
     int mean_k = 50;
     float std_mul = 1.0f;
     std::string filtered_frame_id = "filtered";
+    bool debugSwitch = false;
 }param;
 
 
@@ -81,6 +82,8 @@ static void initParams(ros::NodeHandle &nh) {
     //outlierRemoval Filter
     param.mean_k = nh.param<int>("meanK", 50);
     param.std_mul = nh.param<float>("stdMul", 1.0f);
+    //debugSwitch
+    param.debugSwitch = nh.param<bool>("debugSwitch", false);
 }
 
 
@@ -91,7 +94,8 @@ static void initParams(ros::NodeHandle &nh) {
 static void cloudCallback(const sensor_msgs::PointCloud2ConstPtr &cloud_msg_in) {
     if (!ros::ok())
         return;
-    ROS_INFO("Filter Points cloudCallback.");
+    if(param.debugSwitch)
+        ROS_INFO("Filter Points cloudCallback.");
     pcl::PointCloud<PointT>::Ptr cloud_in(new pcl::PointCloud<PointT>); // 申请点云空间 进入的点云
     pcl::PointCloud<PointT>::ConstPtr cloud_filtered;                      // 点云指针
     pcl::fromROSMsg(*cloud_msg_in, *cloud_in);                          // 转换数据类型
