@@ -14,8 +14,8 @@
 #include <pcl_conversions/pcl_conversions.h>
 #include <boost/thread/thread.hpp>
 
-#include "tf2_ros/transform_listener.h"
-#include "tf2_ros/transform_broadcaster.h"
+#include <tf2_ros/transform_listener.h>
+#include <tf2_ros/transform_broadcaster.h>
 #include <nav_msgs/Odometry.h>
 #include <geometry_msgs/TransformStamped.h>
 #include <sensor_msgs/PointCloud2.h> //传感器消息类型
@@ -69,8 +69,9 @@ int main(int argc, char **argv) {
 
     initParams(nh);
 
-    points_sub = nh.subscribe("/filtered_points", 5, &cloudCallback);
+    points_sub = nh.subscribe<sensor_msgs::PointCloud2>("/filtered_points", 5, &cloudCallback);
     odom_pub = nh.advertise<nav_msgs::Odometry>("/odom", 50);
+
 
     ros::spin();
     return 0;
@@ -117,7 +118,7 @@ static Eigen::Matrix4f matching(const ros::Time &stamp, const pcl::PointCloud<Po
     pose_trans.setIdentity();
     pose_global.setIdentity();
 
-    if (param.keyframe == nullptr) {
+    if (param.keyframe == nullptr) { //初始位姿为单位矩阵
         param.keyframe = cloud_in;
         param.keyframe_pose.setIdentity();
         param.keyframe_stamp = stamp;

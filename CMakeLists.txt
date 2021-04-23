@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.0.2)
-project(my_odom)
+project(my_slam)
 
 ## Compile as C++11, supported in ROS Kinetic and newer
 add_compile_options(-std=c++11)
@@ -12,9 +12,12 @@ find_package(catkin REQUIRED COMPONENTS
         rospy
         sensor_msgs
         std_msgs
+        nav_msgs
         pcl_ros
         tf2
         tf2_ros
+        dynamic_reconfigure
+        message_generation
         )
 
 ## System dependencies are found with CMake's conventions
@@ -46,11 +49,10 @@ message(STATUS "PCL_DEFINITIONS:" ${PCL_DEFINITIONS})
 # )
 
 ## Generate services in the 'srv' folder
-# add_service_files(
-#   FILES
-#   Service1.srv
-#   Service2.srv
-# )
+add_service_files(
+        FILES
+        saveMap.srv
+)
 
 ## Generate actions in the 'action' folder
 # add_action_files(
@@ -60,18 +62,29 @@ message(STATUS "PCL_DEFINITIONS:" ${PCL_DEFINITIONS})
 # )
 
 ## Generate added messages and services with any dependencies listed here
-# generate_messages(
-#   DEPENDENCIES
-#   sensor_msgs#   std_msgs
-# )
+generate_messages(
+        DEPENDENCIES
+        sensor_msgs
+        std_msgs
+        nav_msgs
+)
+
+################################################
+## Declare ROS dynamic reconfigure parameters ##
+################################################
+
+## Generate dynamic reconfigure parameters in the 'cfg' folder
+generate_dynamic_reconfigure_options(
+        cfg/dr.cfg
+)
 
 ###################################
 ## catkin specific configuration ##
 ###################################
 catkin_package(
         INCLUDE_DIRS include
-        #  LIBRARIES publish_points_cloud
-        CATKIN_DEPENDS roscpp rospy sensor_msgs std_msgs pcl_ros tf2 tf2_ros
+        LIBRARIES my_slam
+        CATKIN_DEPENDS roscpp rospy sensor_msgs std_msgs pcl_ros tf2 tf2_ros dynamic_reconfigure
         #  DEPENDS system_lib
 )
 
@@ -91,10 +104,15 @@ add_executable(get_points_cloud_node src/getPointsCloud.cpp)
 add_dependencies(get_points_cloud_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(get_points_cloud_node ${catkin_LIBRARIES})
 
-add_executable(filter_points_cloud_node src/filterPointsCloud.cpp include/common.h)
+add_executable(filter_points_cloud_node src/filterPointsCloud.cpp)
 add_dependencies(filter_points_cloud_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(filter_points_cloud_node ${catkin_LIBRARIES})
 
 add_executable(get_odom_node src/getOdom.cpp)
 add_dependencies(get_odom_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(get_odom_node ${catkin_LIBRARIES})
+
+add_executable(get_map_node src/getMap.cpp)
+add_dependencies(get_map_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS} ${PROJECT_NAME}_gencpp)
+target_link_libraries(get_map_node ${catkin_LIBRARIES})
+

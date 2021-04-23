@@ -1,8 +1,0 @@
-//
-// Created by doudou on 2021/4/10.
-//
-
-#ifndef PUBLISH_POINTS_CLOUD_COMMON_H
-#define PUBLISH_POINTS_CLOUD_COMMON_H
-
-#endif //PUBLISH_POINTS_CLOUD_COMMON_H
